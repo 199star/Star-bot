@@ -1,54 +1,57 @@
-const axios = require("axios");
+const axios = require('axios');
 
-const apiUrl = "https://ai.tantrik-apis.repl.co/gpt?query=";
+const Prefixes = [
+  'gpt',
+  'ai',
+  'morning',
+  'star',
+];
 
 module.exports = {
-//THIS COMMAND DOESNT NEED OPENAI KEY
-  
   config: {
-    name: "ai",
-    aliases: ["ai","gpt"],
-    version: "1.0",
-    author: "tanvir",
-    countDown: 5,
+    name: 'chatgpt',
+    version: '2.0',
+    author: 'Aryan Chauhan',
     role: 0,
+    category: 'ai',
     shortDescription: {
-      en: "get a response/answers from chatGPT"
+      en: 'Asks an AI for an answer.',
     },
     longDescription: {
-      en: "get response/answers chatGPT"
+      en: 'Asks an AI for an answer based on the user prompt.',
     },
-    category: "ai"
+    guide: {
+      en: '{pn} [prompt]',
+    },
   },
-
-  onStart: async function ({ message, event, args, commandName }) {
-    const prompt = args.join(" ");
-
-    if (!prompt) {
-      message.reply("Please provide a prompt.");
-      return;
-    }
-
+  onStart: async function () {},
+  onChat: async function ({ api, event, args, message }) {
     try {
-      const queryUrl = apiUrl + encodeURIComponent(prompt);
-      const response = await axios.get(queryUrl);
-      const result = response.data;
+      const prefix = Prefixes.find((p) => event.body && event.body.toLowerCase().startsWith(p)); 
 
-      const content = result.gpt;
+      if (!prefix) {
+        return;
+      }
 
-      const replyOptions = {
-        body: content
-      };
+      const prompt = event.body.substring(prefix.length).trim();
 
-      message.reply(replyOptions, (err, info) => {
-        global.GoatBot.onReply.set(info.messageID, {
-          commandName,
-          messageID: info.messageID,
-          author: event.senderID
-        });
-      });
+      const response = await axios.get(`http://ai-technology.onrender.com/api/starai?prompt=${encodeURIComponent(prompt)}`);
+
+      if (response.status !== 200 || !response.data) {
+        throw new Error('Invalid or missing response from API');
+      }
+
+      const messageText = response.data.fullResponse;
+
+      await api.sendMessage(messageText, event.threadID);
+
+      console.log('Sent answer as a reply to user');
     } catch (error) {
-      console.error("Error:", error.message);
+      console.error(`Failed to get answer: ${error.message}`);
+      api.sendMessage(
+        `${error.message}. You can try typing your question again or resending it, as there might be a bug from the server that's causing the problem. It might resolve the issue.`,
+        event.threadID
+      );
     }
-  }
+  },
 };
